@@ -1,0 +1,299 @@
+package com.deaniemqri.studentportal;
+
+import java.io.*;
+import java.util.*;
+
+public class StudentPortal {
+
+    private static final String USER_FILE_NAME = "src/UserData.txt";
+    private static final String SUBJECT_FILE_NAME = "src/AcademicSubjects.txt";
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+
+        // Load data
+        List<User> users = DataStorage.loadUsers();
+        Map<String, String> subjectMapping = loadSubjectMapping(); 
+
+        UserAuth auth = new UserAuth(users);
+
+        while (true) {
+            System.out.println("\n1. Register");
+            System.out.println("2. Login");
+            System.out.println("3. Exit");
+            System.out.print("Choose an option: ");
+            int choice = scanner.nextInt();
+            scanner.nextLine();
+
+            if (choice == 1) {
+                auth.registerUser(scanner);
+                DataStorage.saveUsers(users);
+            } else if (choice == 2) {
+                User loggedInUser = auth.loginUser(scanner);
+                if (loggedInUser != null) {
+                    showStudentMenu(loggedInUser, scanner, subjectMapping); 
+                }
+            } else if (choice == 3) {
+                System.out.println("Exiting...");
+                break;
+            } else {
+                System.out.println("Invalid choice. Please try again.");
+            }
+        }
+
+        scanner.close();
+    }
+
+    private static void showStudentMenu(User user, Scanner scanner, Map<String, String> subjectMapping) {
+        while (true) {
+            System.out.println("\nLogin successful!");
+            System.out.println("Welcome " + user.getStudentEmail());
+            System.out.println("1. Display academic subjects");
+            System.out.println("0. Exit");
+            System.out.print("Choose an option: ");
+            int choice = scanner.nextInt();
+            scanner.nextLine();
+
+            if (choice == 1) {
+                displayAcademicSubjects(user, subjectMapping);
+            } else if (choice == 0) {
+                System.out.println("Exiting...");
+                break;
+            } else {
+                System.out.println("Invalid choice. Please try again.");
+            }
+        }
+    }
+
+    private static void displayAcademicSubjects(User user, Map<String, String> subjectMapping) {
+    System.out.println("Academic Subjects you are enrolled in:");
+    List<String> subjectCodes = user.getAcademicSubjects(); 
+    if (subjectCodes.isEmpty()) {
+        System.out.println("No academic subjects enrolled.");
+    } else {
+        
+        List<Map.Entry<String, String>> subjectsWithNames = new ArrayList<>();
+        for (String subjectCode : subjectCodes) {
+            String subjectName = subjectMapping.get(subjectCode); 
+            if (subjectName != null) {
+                subjectsWithNames.add(new AbstractMap.SimpleEntry<>(subjectCode, subjectName));
+            } else {
+                System.out.println(subjectCode + ", Subject not found"); 
+            }
+        }
+
+        Collections.sort(subjectsWithNames, new Comparator<Map.Entry<String, String>>() {
+            @Override
+            public int compare(Map.Entry<String, String> entry1, Map.Entry<String, String> entry2) {
+                return entry1.getValue().compareTo(entry2.getValue()); 
+            }
+        });
+
+        for (Map.Entry<String, String> entry : subjectsWithNames) {
+            System.out.println(entry.getKey() + ", " + entry.getValue()); 
+        }
+    }
+}
+
+
+    private static Map<String, String> loadSubjectMapping() {
+        Map<String, String> subjectMapping = new HashMap<>();
+        File file = new File(SUBJECT_FILE_NAME);
+
+        if (!file.exists()) {
+            saveDefaultSubjects(file);
+        }
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length == 2) {
+                    subjectMapping.put(parts[0].trim(), parts[1].trim());
+                }
+            }
+        } catch (FileNotFoundException e) {
+            System.err.println("Subjects file not found: " + file.getAbsolutePath());
+        } catch (IOException e) {
+            System.err.println("Error reading subjects file: " + e.getMessage());
+        }
+
+        return subjectMapping;
+    }
+
+    private static void saveDefaultSubjects(File file) {
+        String[] defaultSubjects = {
+            "1103,Malay Language",
+            "1119,English Language",
+            "1223,Islamic Education",
+            "1225,Moral Education",
+            "1249,History",
+            "1449,Mathematics",
+            "1511,Science",
+            "3472,Additional Mathematics",
+            "3754,Entrepreneurial Studies",
+            "3766,Business",
+            "3756,Principles of Accounting",
+            "3767,Economics",
+            "4531,Physics",
+            "4541,Chemistry",
+            "4551,Biology",
+            "6531,Chinese Language"
+        };
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            for (String subject : defaultSubjects) {
+                writer.write(subject);
+                writer.newLine();
+            }
+            System.out.println("Default subjects saved to " + file.getAbsolutePath());
+        } catch (IOException e) {
+            System.err.println("Error saving default subjects: " + e.getMessage());
+        }
+    }
+
+    private static void displayAvailableSubjects(Map<String, String> subjectMapping) {
+        System.out.println("Available Academic Subjects:");
+        System.out.println("Code : Subject Name");
+        System.out.println("=".repeat(30));
+        subjectMapping.forEach((code, name) -> System.out.println(code + " : " + name));
+        System.out.println();
+    }
+}
+
+class User {
+    private String studentEmail;
+    private String matricNumber;
+    private String password;
+    private List<String> academicSubjects;
+    private List<String> coCurricularClubs;
+
+    public User(String studentEmail, String matricNumber, String password,
+                List<String> academicSubjects, List<String> coCurricularClubs) {
+        this.studentEmail = studentEmail;
+        this.matricNumber = matricNumber;
+        this.password = password;
+        this.academicSubjects = academicSubjects;
+        this.coCurricularClubs = coCurricularClubs;
+    }
+
+    public String getStudentEmail() {
+        return studentEmail;
+    }
+
+    public String getMatricNumber() {
+        return matricNumber;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public List<String> getAcademicSubjects() {
+        return academicSubjects;
+    }
+
+    public List<String> getCoCurricularClubs() {
+        return coCurricularClubs;
+    }
+
+    @Override
+    public String toString() {
+        return studentEmail + "\n" + matricNumber + "\n" + password + "\n" +
+                String.join(", ", academicSubjects) + "\n" +
+                String.join(", ", coCurricularClubs) + "\n";
+    }
+}
+
+class UserAuth {
+    private List<User> users;
+
+    public UserAuth(List<User> users) {
+        this.users = users;
+    }
+
+    public void registerUser(Scanner scanner) {
+        System.out.print("Enter student email: ");
+        String email = scanner.nextLine();
+        System.out.print("Enter matric number: ");
+        String matricNumber = scanner.nextLine();
+        System.out.print("Enter password: ");
+        String password = scanner.nextLine();
+
+        System.out.print("Enter academic subjects (separate with semicolons): ");
+        List<String> subjects = List.of(scanner.nextLine().split(";"));
+
+        System.out.print("Enter co-curricular clubs (separate with semicolons): ");
+        List<String> clubs = List.of(scanner.nextLine().split(";"));
+
+        User newUser = new User(email, matricNumber, password, subjects, clubs);
+        users.add(newUser);
+        System.out.println("Registration successful!");
+    }
+
+    public User loginUser(Scanner scanner) {
+        System.out.print("Enter email: ");
+        String email = scanner.nextLine();
+        System.out.print("Enter password: ");
+        String password = scanner.nextLine();
+
+        for (User user : users) {
+            if (user.getStudentEmail().equals(email) && user.getPassword().equals(password)) {
+                System.out.println("Login successful!");
+                return user;
+            }
+        }
+        System.out.println("Invalid email or password.");
+        return null;
+    }
+}
+
+class DataStorage {
+    public static List<User> loadUsers() {
+        List<User> users = new ArrayList<>();
+        File file = new File("UserData.txt");
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String email;
+            while ((email = br.readLine()) != null) {
+                String matricNumber = br.readLine();
+                String password = br.readLine();
+                String subjectsLine = br.readLine();
+                String clubsLine = br.readLine();
+
+                if (matricNumber == null || password == null || subjectsLine == null || clubsLine == null) {
+                    System.err.println("Error: Malformed or incomplete user data. Skipping...");
+                    break;
+                }
+
+                String[] subjects = subjectsLine.split(", ");
+                String[] clubs = clubsLine.split(", ");
+
+                List<String> academicSubjects = List.of(subjects);
+                List<String> coCurricularClubs = List.of(clubs);
+                users.add(new User(email, matricNumber, password, academicSubjects, coCurricularClubs));
+
+                br.readLine();
+            }
+        } catch (FileNotFoundException e) {
+            System.err.println("User data file not found: " + file.getAbsolutePath());
+        } catch (IOException e) {
+            System.err.println("Error loading user data: " + e.getMessage());
+        }
+
+        return users;
+    }
+
+    public static void saveUsers(List<User> users) {
+        File file = new File("UserData.txt");
+
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(file))) {
+            for (User user : users) {
+                bw.write(user.toString());
+                bw.newLine();
+            }
+        } catch (IOException e) {
+            System.err.println("Error saving users: " + e.getMessage());
+        }
+    }
+}
