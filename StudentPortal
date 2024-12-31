@@ -13,7 +13,8 @@ public class StudentPortal {
 
         // Load data
         List<User> users = DataStorage.loadUsers();
-        Map<String, String> subjectMapping = loadSubjectMapping(); 
+        Map<String, String> subjectMapping = loadSubjectMapping();
+        Map<String, String> coCurricularMapping = loadCoCurricularMapping();
 
         UserAuth auth = new UserAuth(users);
 
@@ -31,7 +32,7 @@ public class StudentPortal {
             } else if (choice == 2) {
                 User loggedInUser = auth.loginUser(scanner);
                 if (loggedInUser != null) {
-                    showStudentMenu(loggedInUser, scanner, subjectMapping); 
+                    showStudentMenu(loggedInUser, scanner, subjectMapping, coCurricularMapping);
                 }
             } else if (choice == 3) {
                 System.out.println("Exiting...");
@@ -44,11 +45,13 @@ public class StudentPortal {
         scanner.close();
     }
 
-    private static void showStudentMenu(User user, Scanner scanner, Map<String, String> subjectMapping) {
+    private static void showStudentMenu(User user, Scanner scanner, Map<String, String> subjectMapping, Map<String, String> coCurricularMapping) {
         while (true) {
             System.out.println("\nLogin successful!");
             System.out.println("Welcome " + user.getStudentEmail());
             System.out.println("1. Display academic subjects");
+            System.out.println("2. Display co-curricular activities");
+            System.out.println("3. Generate Transcript");
             System.out.println("0. Exit");
             System.out.print("Choose an option: ");
             int choice = scanner.nextInt();
@@ -56,9 +59,14 @@ public class StudentPortal {
 
             if (choice == 1) {
                 displayAcademicSubjects(user, subjectMapping);
+            } else if (choice == 2) {
+                displayCoCurricularActivities(user, coCurricularMapping);
             } else if (choice == 0) {
                 System.out.println("Exiting...");
                 break;
+            } else if (choice == 3){
+                CocurriculumMarksCalculator(user,scanner);
+                
             } else {
                 System.out.println("Invalid choice. Please try again.");
             }
@@ -66,35 +74,28 @@ public class StudentPortal {
     }
 
     private static void displayAcademicSubjects(User user, Map<String, String> subjectMapping) {
-    System.out.println("Academic Subjects you are enrolled in:");
-    List<String> subjectCodes = user.getAcademicSubjects(); 
-    if (subjectCodes.isEmpty()) {
-        System.out.println("No academic subjects enrolled.");
-    } else {
-        
-        List<Map.Entry<String, String>> subjectsWithNames = new ArrayList<>();
-        for (String subjectCode : subjectCodes) {
-            String subjectName = subjectMapping.get(subjectCode); 
-            if (subjectName != null) {
-                subjectsWithNames.add(new AbstractMap.SimpleEntry<>(subjectCode, subjectName));
-            } else {
-                System.out.println(subjectCode + ", Subject not found"); 
+        System.out.println("Academic Subjects you are enrolled in:");
+        List<String> subjectCodes = user.getAcademicSubjects();
+        if (subjectCodes.isEmpty()) {
+            System.out.println("No academic subjects enrolled.");
+        } else {
+            List<Map.Entry<String, String>> subjectsWithNames = new ArrayList<>();
+            for (String subjectCode : subjectCodes) {
+                String subjectName = subjectMapping.get(subjectCode);
+                if (subjectName != null) {
+                    subjectsWithNames.add(new AbstractMap.SimpleEntry<>(subjectCode, subjectName));
+                } else {
+                    System.out.println(subjectCode + ", Subject not found");
+                }
             }
-        }
 
-        Collections.sort(subjectsWithNames, new Comparator<Map.Entry<String, String>>() {
-            @Override
-            public int compare(Map.Entry<String, String> entry1, Map.Entry<String, String> entry2) {
-                return entry1.getValue().compareTo(entry2.getValue()); 
+            subjectsWithNames.sort(Map.Entry.comparingByValue());
+
+            for (Map.Entry<String, String> entry : subjectsWithNames) {
+                System.out.println(entry.getKey() + ", " + entry.getValue());
             }
-        });
-
-        for (Map.Entry<String, String> entry : subjectsWithNames) {
-            System.out.println(entry.getKey() + ", " + entry.getValue()); 
         }
     }
-}
-
 
     private static Map<String, String> loadSubjectMapping() {
         Map<String, String> subjectMapping = new HashMap<>();
@@ -152,6 +153,79 @@ public class StudentPortal {
         }
     }
 
+    private static void displayCoCurricularActivities(User user, Map<String, String> coCurricularMapping) {
+        System.out.println("Co-Curricular Activities you are enrolled in:");
+        List<String> activityCodes = user.getCoCurricularClubs();
+
+        if (activityCodes.isEmpty()) {
+            System.out.println("No co-curricular activities enrolled.");
+            return;
+        }
+
+        List<Map.Entry<String, String>> activitiesWithNames = new ArrayList<>();
+        for (String activityCode : activityCodes) {
+            String activityName = coCurricularMapping.get(activityCode);
+            if (activityName != null) {
+                activitiesWithNames.add(new AbstractMap.SimpleEntry<>(activityCode, activityName));
+            } else {
+                System.out.println(activityCode + " - Activity not found.");
+            }
+        }
+
+        activitiesWithNames.sort(Map.Entry.comparingByValue());
+
+        for (Map.Entry<String, String> entry : activitiesWithNames) {
+            System.out.println(entry.getKey() + " - " + entry.getValue());
+        }
+    }
+
+    private static Map<String, String> loadCoCurricularMapping() {
+        Map<String, String> coCurricularMapping = new HashMap<>();
+        File file = new File("CoCurricularActivities.txt");
+
+        if (!file.exists()) {
+            saveDefaultCoCurricularActivities(file);
+        }
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(",", 2);
+                if (parts.length == 2) {
+                    coCurricularMapping.put(parts[0].trim(), parts[1].trim());
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error reading co-curricular activities file: " + e.getMessage());
+        }
+
+        return coCurricularMapping;
+    }
+
+    private static void saveDefaultCoCurricularActivities(File file) {
+        String[] defaultActivities = {
+            "B01,Scout",
+            "B03,Police Cadet",
+            "B07,The Boys’ Brigade",
+            "P27,Computer Society",
+            "P81,Young Entrepreneur Society",
+            "P82,Robotic Club",
+            "S01,Badminton Club",
+            "S10,Swimming Club",
+            "S15,Fencing Club",            
+        };
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            for (String activity : defaultActivities) {
+                writer.write(activity);
+                writer.newLine();
+            }
+            System.out.println("Default co-curricular activities saved to " + file.getAbsolutePath());
+        } catch (IOException e) {
+            System.err.println("Error saving default co-curricular activities: " + e.getMessage());
+        }
+    }
+
     private static void displayAvailableSubjects(Map<String, String> subjectMapping) {
         System.out.println("Available Academic Subjects:");
         System.out.println("Code : Subject Name");
@@ -159,7 +233,180 @@ public class StudentPortal {
         subjectMapping.forEach((code, name) -> System.out.println(code + " : " + name));
         System.out.println();
     }
+    private static void CocurriculumMarksCalculator(User user, Scanner scanner) {
+    try {
+        // File writers
+        BufferedWriter positionWriter = new BufferedWriter(new FileWriter("StudentPositions.txt", true));
+        BufferedWriter activityWriter = new BufferedWriter(new FileWriter("ActivitiesLog.txt", true));
+
+        // Prompt for positions
+        System.out.println("Enter your positions and achievements:");
+        System.out.print("Matric Number: ");
+        String matricNumber = user.getMatricNumber();
+        System.out.println(matricNumber);
+
+        System.out.print("Society Code and Position: ");
+        String societyPosition = scanner.nextLine();
+
+        System.out.print("Uniform Body Code and Position: ");
+        String uniformPosition = scanner.nextLine();
+
+        System.out.print("Sports Club Code and Position: ");
+        String sportsPosition = scanner.nextLine();
+
+        // Save positions to file
+        positionWriter.write(matricNumber + "," + societyPosition + "," + uniformPosition + "," + sportsPosition);
+        positionWriter.newLine();
+        positionWriter.close();
+
+        // Prompt for activities
+        System.out.println("\nEnter your activities and achievements:");
+
+        System.out.print("Society Code, Activity Involved, Level, and Achievement (separate with ','): ");
+        String societyActivity = scanner.nextLine();
+
+        System.out.print("Uniform Body Code, Activity Involved, Level, and Achievement (separate with ','): ");
+        String uniformActivity = scanner.nextLine();
+
+        System.out.print("Sports Club Code, Activity Involved, Level, and Achievement (separate with ','): ");
+        String sportsActivity = scanner.nextLine();
+
+        // Save activities to file
+        if (!societyActivity.isBlank()) {
+            activityWriter.write(matricNumber + "," + societyActivity);
+            activityWriter.newLine();
+        }
+        if (!uniformActivity.isBlank()) {
+            activityWriter.write(matricNumber + "," + uniformActivity);
+            activityWriter.newLine();
+        }
+        if (!sportsActivity.isBlank()) {
+            activityWriter.write(matricNumber + "," + sportsActivity);
+            activityWriter.newLine();
+        }
+
+        activityWriter.close();
+
+        // Calculate marks
+        calculateMarks(matricNumber);
+
+    } catch (IOException e) {
+        System.err.println("Error writing to file: " + e.getMessage());
+    }
 }
+
+private static void calculateMarks(String matricNumber) {
+    try {
+        BufferedReader positionReader = new BufferedReader(new FileReader("StudentPositions.txt"));
+        BufferedReader activityReader = new BufferedReader(new FileReader("ActivitiesLog.txt"));
+
+        String positionLine;
+        String activityLine;
+        int totalMarks = 0;
+        int highestMark = 0;
+        int secondHighestMark = 0;
+
+        System.out.println("\nTranscript for student " + matricNumber);
+        System.out.println("Co-curriculum Transcript for " + matricNumber);
+        System.out.println("=".repeat(72));
+
+        while ((positionLine = positionReader.readLine()) != null) {
+            String[] positionData = positionLine.split(",");
+            if (positionData[0].equals(matricNumber)) {
+                for (int i = 1; i < positionData.length; i++) {
+                    String clubPosition = positionData[i];
+                    int positionMarks = getPositionMarks(clubPosition);
+
+                    String clubCode = clubPosition.split(" ")[0];
+                    String activityDetails = null;
+                    while ((activityLine = activityReader.readLine()) != null) {
+                        if (activityLine.startsWith(matricNumber + "," + clubCode)) {
+                            activityDetails = activityLine;
+                            break;
+                        }
+                    }
+
+                    int attendanceMarks = 50;
+                    int levelMarks = 0;
+                    int achievementMarks = 0;
+                    String activityName = "None";
+                    String activityLevel = "None";
+                    String activityAchievement = "None";
+
+                    if (activityDetails != null) {
+                        String[] activityData = activityDetails.split(",");
+                        activityName = activityData[2];
+                        activityLevel = activityData[3];
+                        activityAchievement = activityData[4];
+
+                        levelMarks = getLevelMarks(activityLevel);
+                        achievementMarks = getAchievementMarks(activityAchievement);
+                    }
+
+                    int clubTotal = attendanceMarks + positionMarks + levelMarks + achievementMarks;
+                    totalMarks += clubTotal;
+
+                    if (clubTotal > highestMark) {
+                        secondHighestMark = highestMark;
+                        highestMark = clubTotal;
+                    } else if (clubTotal > secondHighestMark) {
+                        secondHighestMark = clubTotal;
+                    }
+
+                    System.out.printf("[%s]\n", clubCode);
+                    System.out.printf("Attendance: assume full ------------> %d/50 marks\n", attendanceMarks);
+                    System.out.printf("Position: %-25s ------------> %2d/10 marks\n", positionData[i], positionMarks);
+                    System.out.printf("Selected Activity: %s\n", activityName);
+                    System.out.printf("Level of Activities: %-15s ------> %2d/20 marks\n", activityLevel, levelMarks);
+                    System.out.printf("Achievement Level: %-15s ------------> %2d/20 marks\n", activityAchievement, achievementMarks);
+                    System.out.println("=".repeat(72));
+                }
+            }
+        }
+
+        double finalMark = (highestMark + secondHighestMark) / 2.0;
+        System.out.printf("FINAL MARKS: %.1f marks\n", finalMark);
+
+        positionReader.close();
+        activityReader.close();
+    } catch (IOException e) {
+        System.err.println("Error reading file: " + e.getMessage());
+    }
+}
+
+private static int getPositionMarks(String position) {
+    return switch (position) {
+        case "President" -> 10;
+        case "Vice President", "Secretary", "Treasurer" -> 9;
+        case "Vice Secretary", "Vice Treasurer" -> 8;
+        case "Committee" -> 7;
+        case "Active Member" -> 6;
+        default -> 0;
+    };
+}
+
+private static int getLevelMarks(String level) {
+    return switch (level) {
+        case "International" -> 20;
+        case "National" -> 15;
+        case "State" -> 12;
+        case "School" -> 10;
+        default -> 0;
+    };
+}
+
+private static int getAchievementMarks(String achievement) {
+    return switch (achievement) {
+        case "Gold" -> 20;
+        case "Silver" -> 19;
+        case "Bronze" -> 18;
+        case "Participation" -> 0;
+        default -> 0;
+    };
+}
+}
+
+
 
 class User {
     private String studentEmail;
